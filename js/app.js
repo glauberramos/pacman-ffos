@@ -1,3 +1,12 @@
+requirejs.config({
+	baseUrl: 'js'
+});
+requirejs(['strategies'], function () { 
+	reset();
+	var then = Date.now();
+	main();	
+});
+
 // Setup requestAnimationFrame
 requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||  
                         window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
@@ -38,9 +47,16 @@ var matrix = undefined;
 var hero = {
 	speed: 1
 };
-var monster = {
-	direction: 0
-};
+
+var getMonster = function(d) {
+	return {
+		direction: d,
+		mode: 'hunter'
+	}
+}
+
+var monsters = [ getMonster(0), getMonster(1), getMonster(2), getMonster(3) ];
+
 var monstersCaught = 0;
 
 // Handle keyboard controls
@@ -56,12 +72,19 @@ addEventListener("keyup", function (e) {
 
 // Reset the game when the player catches a monster
 var reset = function () {
-	hero.x = canvas.width / 2;
-	hero.y = (canvas.height / 2) - 20;
+	hero.x = canvas.width / 2 - 15;
+	hero.y = (canvas.height / 2) - 20 + 70;
+	
+	strategies = levelsStrategies[0];
 
-	// Throw the monster somewhere on the screen randomly
-	monster.x = 32 + (Math.random() * (canvas.width - 64));
-	monster.y = 32 + (Math.random() * (canvas.height - 64));
+	// Place the ghosts on the screen
+	for (var i in monsters) {
+		monsters[i].x = (canvas.width / 2) + (i*30) - 50;
+		monsters[i].y = (canvas.height / 2) - 15;
+		monsters[i].strategy = strategies[i];
+		monsters[i].invert_x = false;
+		monsters[i].invert_y = false;
+	}
 };
 
 // --- collision stuff
@@ -161,49 +184,24 @@ var update = function () {
 	//var point = collision(hero, pos);
 	//hero.x = point.x;
 	//hero.y = point.y;
-
-	var result;
-
-	if(monster.direction == 0) {
-		monster.direction = Math.floor((Math.random()*4)+1);
-	}
-
-	if(monster.direction == 1) {
-		result = collision(monster, {x: monster.x, y: monster.y - 1});
-	}
-
-	if(monster.direction == 2) {
-		result = collision(monster, {x: monster.x + 1, y: monster.y});
-	}
-
-	if(monster.direction == 3) {
-		result = collision(monster, {x: monster.x, y: monster.y  + 1});
-	}
-
-	if(monster.direction == 4) {
-		result = collision(monster, {x: monster.x - 1, y: monster.y});
-	}
-
-	if (result.x == monster.x && result.y == monster.y) {
-		monster.direction = Math.floor((Math.random()*4)+1);
-		monster.x + 2;
-		monster.y + 2;
-	} else {
-		monster.x = result.x;
-		monster.y = result.y;
-	}
-
-	// Are they touching?
-	if (
-		hero.x <= (monster.x + 32)
-		&& monster.x <= (hero.x +  32)
-		&& hero.y <= (monster.y + 32)
-		&& monster.y <= (hero.y + 32)
-	) {
-		++monstersCaught;
-		reset();
+	
+	for (var i in monsters) {
+		f = monsters[i].strategy;
+		f(monsters[i]);
+		
+		// Are they touching?
+		if (
+			hero.x <= (monsters[i].x + 32)
+			&& monsters[i].x <= (hero.x +  32)
+			&& hero.y <= (monsters[i].y + 32)
+			&& monsters[i].y <= (hero.y + 32)
+		) {
+			++monstersCaught;
+			reset();
+		}		
 	}
 };
+
 
 // Draw everything
 var render = function () {
@@ -220,23 +218,21 @@ var render = function () {
 	}
 
 	if (monsterReady) {
-		ctx.drawImage(monsterImage, monster.x, monster.y);
+		for (var i in monsters) {
+			ctx.drawImage(monsterImage, monsters[i].x, monsters[i].y);
+		}
 	}
 };
 
 // The main game loop
 var main = function () {
-	var now = Date.now();
-	var delta = now - then;
+	//var now = Date.now();
+	//var delta = now - then;
 
 	update();
 	render();
 
-	then = now;
+	//then = now;
 	requestAnimationFrame(main);
 };
 
-// Let's play this game!
-reset();
-var then = Date.now();
-main();
